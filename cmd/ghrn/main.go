@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/shuse2/github-release-notes/fetcher"
+	"github.com/shuse2/github-release-notes/githubber"
 	"github.com/urfave/cli"
 	"os"
 	"strconv"
@@ -41,7 +41,7 @@ func main() {
 
 func getByProject(c *cli.Context) error {
 	token := c.String("token")
-	client := fetcher.NewFetcher(token)
+	client := githubber.NewFetcher(token)
 	user := c.String("user")
 	repo := c.String("repo")
 	projectStr := c.Args().First()
@@ -52,7 +52,7 @@ func getByProject(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	query := fetcher.IssueSearchQuery{
+	query := githubber.IssueSearchQuery{
 		Organization: user,
 		Repo:         repo,
 		Project:      project,
@@ -61,6 +61,10 @@ func getByProject(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(items)
+	prs := githubber.GithubItems(items).GetPRs()
+	issues := githubber.GithubItems(items).GetIssues()
+	fmt.Println(len(items))
+	fmt.Println(len(prs))
+	fmt.Println(len(issues))
 	return nil
 }

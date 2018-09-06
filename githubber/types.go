@@ -1,4 +1,4 @@
-package fetcher
+package githubber
 
 import (
 	"time"
@@ -9,6 +9,8 @@ type GithubIssueSearchResponse struct {
 	IncompleteResults bool         `json:"incomplete_results"`
 	Items             []GithubItem `json:"items"`
 }
+
+type GithubItems []GithubItem
 
 type GithubItem struct {
 	URL               string             `json:"url"`
