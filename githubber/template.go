@@ -15,13 +15,11 @@ const ChangeLogTemplate = `
 [Full Changelog](https://github.com/LiskHQ/lisk-commander/compare/{{.Version}}...HEAD)
 
 **Closed issues:**
-{{range .ClosedIssues}}
-- {{.Title}} [#{{.Number}}]({{.HTMLURL}})
+{{range .ClosedIssues}}- {{.Title}} [#{{.Number}}]({{.HTMLURL}})
 {{end}}
 
 **Merged pull requests:**
-{{range .ClosedPRs}}
-- {{.Title}} [#{{.Number}}]({{.PullRequest.HTMLURL}}) ([{{.User.Login}}]({{.User.HTMLURL}}))
+{{range .ClosedPRs}}- {{.Title}} [#{{.Number}}]({{.PullRequest.HTMLURL}}) ([{{.User.Login}}]({{.User.HTMLURL}}))
 {{end}}
 `
 
