@@ -31,9 +31,14 @@ func main() {
 					Name:  "token, t",
 					Usage: "Token to use",
 				},
+				cli.StringFlag{
+					Name:  "tag",
+					Usage: "Tag of release note creating for",
+				},
 			},
 		},
 	}
+
 	if err := app.Run(os.Args); err != nil {
 		fmt.Println(err)
 	}
@@ -44,6 +49,7 @@ func getByProject(c *cli.Context) error {
 	client := githubber.NewFetcher(token)
 	user := c.String("user")
 	repo := c.String("repo")
+	version := c.String("tag")
 	projectStr := c.Args().First()
 	if projectStr == "" {
 		return fmt.Errorf("Project board nuber must be specified")
@@ -61,10 +67,8 @@ func getByProject(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	prs := githubber.GithubItems(items).GetPRs()
-	issues := githubber.GithubItems(items).GetIssues()
-	fmt.Println(len(items))
-	fmt.Println(len(prs))
-	fmt.Println(len(issues))
+	if err := githubber.SaveChangeLog(version, items); err != nil {
+		return err
+	}
 	return nil
 }
