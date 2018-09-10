@@ -6,6 +6,7 @@ import (
 	"github.com/urfave/cli"
 	"os"
 	"strconv"
+	"strings"
 )
 
 func main() {
@@ -69,7 +70,7 @@ func getByProject(c *cli.Context) error {
 		Repo:         repo,
 		Project:      project,
 	}
-	items, err := client.GetIssuesAndPRs(query)
+	items, err := client.Search(query)
 	if err != nil {
 		return err
 	}
@@ -91,9 +92,21 @@ func getByBranch(c *cli.Context) error {
 		Repo:         repo,
 		Branch:       branch,
 	}
-	items, err := client.GetIssuesAndPRs(query)
+	items, err := client.Search(query)
 	if err != nil {
 		return err
+	}
+	issueNumbers := githubber.GithubItems(items).GetRelatedIssueNumber()
+	ids := make([]string, len(issueNumbers))
+	for i, iNum := range issueNumbers {
+		ids[i] = strings.TrimLeft(iNum, "#")
+	}
+	issues, err := client.GetIssues(user, repo, ids)
+	if err != nil {
+		return err
+	}
+	if len(issues) > 0 {
+		items = append(items, issues...)
 	}
 	if err := githubber.SaveChangeLog(version, items); err != nil {
 		return err

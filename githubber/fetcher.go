@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"golang.org/x/oauth2"
 	"net/http"
+	"sync"
 )
 
 const (
@@ -34,10 +35,10 @@ func NewFetcher(token string) *Fetcher {
 	return &Fetcher{*client}
 }
 
-func (f *Fetcher) GetIssuesAndPRs(query Querier) ([]GithubItem, error) {
+func (f *Fetcher) Search(query Querier) ([]GithubItem, error) {
 	url := APIBaseUrl + APISearchIssueUrl + query.Query()
-	resp, err := f.fetch(url)
-	if err != nil {
+	resp := &GithubIssueSearchResponse{}
+	if err := f.fetch(url, resp); err != nil {
 		return nil, err
 	}
 	if resp.TotalCount <= MaxQueryCount {
@@ -48,8 +49,8 @@ func (f *Fetcher) GetIssuesAndPRs(query Querier) ([]GithubItem, error) {
 	for p := 2; p <= lastPage; p++ {
 		query.UpdatePage(p)
 		next := APIBaseUrl + APISearchIssueUrl + query.Query()
-		remaining, err := f.fetch(next)
-		if err != nil {
+		remaining := &GithubIssueSearchResponse{}
+		if err := f.fetch(next, remaining); err != nil {
 			return nil, err
 		}
 		items = append(items, remaining.Items...)
@@ -57,24 +58,66 @@ func (f *Fetcher) GetIssuesAndPRs(query Querier) ([]GithubItem, error) {
 	return items, nil
 }
 
-func (f *Fetcher) fetch(url string) (*GithubIssueSearchResponse, error) {
+func (f *Fetcher) GetIssues(owner, repo string, ids []string) ([]GithubItem, error) {
+	wg := sync.WaitGroup{}
+	url := APIBaseUrl + "/repos/" + owner + "/" + repo + "/issues/"
+	resp := make(chan GithubItem)
+	errChan := make(chan error)
+	wg.Add(len(ids))
+	for _, id := range ids {
+		go func(id string) {
+			defer wg.Done()
+			fmt.Printf("Fetching %s \n", url+id)
+			req, err := http.NewRequest("GET", url+id, nil)
+			if err != nil {
+				errChan <- err
+				return
+			}
+			req.Header.Set(HeaderKeyAccept, HeaderValuePreview)
+			res, err := f.Do(req)
+			if err != nil {
+				errChan <- err
+				return
+			}
+			defer res.Body.Close()
+			body := GithubItem{}
+			if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
+				errChan <- err
+				return
+			}
+			resp <- body
+		}(id)
+	}
+	items := []GithubItem{}
+	go func() {
+		for res := range resp {
+			items = append(items, res)
+		}
+		for err := range errChan {
+			fmt.Println(err)
+		}
+	}()
+	wg.Wait()
+	return items, nil
+}
+
+func (f *Fetcher) fetch(url string, body interface{}) error {
 	fmt.Printf("Fetching %s \n", url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	req.Header.Set(HeaderKeyAccept, HeaderValuePreview)
 	res, err := f.Do(req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if res.Body == nil {
-		return nil, fmt.Errorf("Response body from %s was nil", url)
+		return fmt.Errorf("Response body from %s was nil", url)
 	}
 	defer res.Body.Close()
-	body := &GithubIssueSearchResponse{}
 	if err := json.NewDecoder(res.Body).Decode(body); err != nil {
-		return nil, err
+		return err
 	}
-	return body, nil
+	return nil
 }
