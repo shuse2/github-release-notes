@@ -13,29 +13,35 @@ func main() {
 	app.Name = "ghrn"
 	app.Usage = "Generate Release notes"
 	app.Version = "0.1.0"
+	commonFlags := []cli.Flag{
+		cli.StringFlag{
+			Name:  "user, u",
+			Usage: "User/Organization of the repository",
+		},
+		cli.StringFlag{
+			Name:  "repo, r",
+			Usage: "Repository name",
+		},
+		cli.StringFlag{
+			Name:  "token, t",
+			Usage: "Token to use",
+		},
+		cli.StringFlag{
+			Name:  "tag",
+			Usage: "Tag of release note creating for",
+		},
+	}
 
 	app.Commands = []cli.Command{
 		cli.Command{
 			Name:   "project",
 			Action: getByProject,
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "user, u",
-					Usage: "User/Organization of the repository",
-				},
-				cli.StringFlag{
-					Name:  "repo, r",
-					Usage: "Repository name",
-				},
-				cli.StringFlag{
-					Name:  "token, t",
-					Usage: "Token to use",
-				},
-				cli.StringFlag{
-					Name:  "tag",
-					Usage: "Tag of release note creating for",
-				},
-			},
+			Flags:  commonFlags[:],
+		},
+		cli.Command{
+			Name:   "branch",
+			Action: getByBranch,
+			Flags:  commonFlags[:],
 		},
 	}
 
@@ -58,10 +64,32 @@ func getByProject(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	query := githubber.IssueSearchQuery{
+	query := &githubber.ProjectQuery{
 		Organization: user,
 		Repo:         repo,
 		Project:      project,
+	}
+	items, err := client.GetIssuesAndPRs(query)
+	if err != nil {
+		return err
+	}
+	if err := githubber.SaveChangeLog(version, items); err != nil {
+		return err
+	}
+	return nil
+}
+
+func getByBranch(c *cli.Context) error {
+	token := c.String("token")
+	client := githubber.NewFetcher(token)
+	user := c.String("user")
+	repo := c.String("repo")
+	version := c.String("tag")
+	branch := c.Args().First()
+	query := &githubber.BranchQuery{
+		Organization: user,
+		Repo:         repo,
+		Branch:       branch,
 	}
 	items, err := client.GetIssuesAndPRs(query)
 	if err != nil {

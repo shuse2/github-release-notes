@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"golang.org/x/oauth2"
 	"net/http"
-	"strconv"
 )
 
 const (
@@ -16,6 +15,11 @@ const (
 	HeaderValuePreview = "application/vnd.github.mercy-preview+json"
 	MaxQueryCount      = 30
 )
+
+type Querier interface {
+	Query() string
+	UpdatePage(int)
+}
 
 type Fetcher struct {
 	http.Client
@@ -30,27 +34,7 @@ func NewFetcher(token string) *Fetcher {
 	return &Fetcher{*client}
 }
 
-type IssueSearchQuery struct {
-	Organization string
-	Repo         string
-	Project      int
-	Page         int
-}
-
-func (q IssueSearchQuery) Query() string {
-	query := "?q="
-	repo := q.Organization + "/" + q.Repo
-	query += "repo:" + repo
-	if q.Project != 0 {
-		query += "+project:" + repo + "/" + strconv.Itoa(q.Project)
-	}
-	if q.Page != 0 {
-		query += "&page=" + strconv.Itoa(q.Page)
-	}
-	return query
-}
-
-func (f *Fetcher) GetIssuesAndPRs(query IssueSearchQuery) ([]GithubItem, error) {
+func (f *Fetcher) GetIssuesAndPRs(query Querier) ([]GithubItem, error) {
 	url := APIBaseUrl + APISearchIssueUrl + query.Query()
 	resp, err := f.fetch(url)
 	if err != nil {
@@ -62,7 +46,7 @@ func (f *Fetcher) GetIssuesAndPRs(query IssueSearchQuery) ([]GithubItem, error) 
 	items := resp.Items
 	lastPage := resp.TotalCount/MaxQueryCount + 1
 	for p := 2; p <= lastPage; p++ {
-		query.Page = p
+		query.UpdatePage(p)
 		next := APIBaseUrl + APISearchIssueUrl + query.Query()
 		remaining, err := f.fetch(next)
 		if err != nil {
