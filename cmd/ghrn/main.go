@@ -74,7 +74,7 @@ func getByProject(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := githubber.SaveChangeLog(version, items); err != nil {
+	if err := githubber.SaveChangeLog(user, repo, version, items); err != nil {
 		return err
 	}
 	return nil
@@ -108,7 +108,7 @@ func getByBranch(c *cli.Context) error {
 	if len(issues) > 0 {
 		items = append(items, issues...)
 	}
-	if err := githubber.SaveChangeLog(version, items); err != nil {
+	if err := githubber.SaveChangeLog(user, repo, version, items); err != nil {
 		return err
 	}
 	return nil
